@@ -258,8 +258,7 @@ class Directory(Auth):
         }
         response_data = self.POST('file/', data)
         response_data2 = self.PUT_DATA(
-            ('data/' + str(response_data['id']) + '/?vid=' +
-                    str(response_data['vid'])),
+            f"data/{response_data['id']}/?vid={response_data['vid']}",
             open(file_path, 'rb')
         )
         return Directory(self.id)
@@ -346,19 +345,30 @@ class File(Auth):
         super().__init__()
         data = self.GET('file/' + str(id) + '/')
         for k, v in data.items():
+            if k == 'versions':
+                v.reverse() # list versions in chronological order
             setattr(self, k, v)
 
-    def download(self, save_path):
+    def download(self, save_path, version_index=None):
         """
-        Download the data associated with this file.
+        Download the data associated with this file. This returns the active
+        version by default.
 
         :param save_path: the path to the directory on your computer that will
             contain this file's data
         :type save_path: string
+        :param version_index: the (optional) index of the version to be
+            downloaded
+        :type version_index: int
         :returns: this file
         """
         save_path = os.path.expanduser(save_path)
-        data = self.GET_DATA('data/' + str(self.id) + '/')
+        if version_index is None:
+            data = self.GET_DATA('data/' + str(self.id) + '/')
+        else:
+            data = self.GET_DATA('data/%d/?vid=%d' % (
+                self.id, self.versions[version_index]['id']
+            ))
         try:
             f = open(save_path, 'wb')
         except IsADirectoryError:
