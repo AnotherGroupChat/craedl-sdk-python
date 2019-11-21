@@ -16,6 +16,7 @@ import json
 import os
 import requests
 import sys
+import yaml
 
 from craedl import errors
 
@@ -29,12 +30,13 @@ class Auth():
 
     if sys.platform == 'win32':
         token_path = os.path.abspath(os.path.join(os.sep, 'Users',
-            os.getlogin(), 'AppData', 'Local', 'Craedl', 'craedl'))
+            os.getlogin(), 'AppData', 'Local', 'Craedl', 'craedl.yml'))
     elif sys.platform == 'darwin':
         token_path = os.path.abspath(os.path.join(os.sep, 'Users',
-            os.getlogin(), 'Library', 'Preferences', 'Craedl', 'craedl'))
+            os.getlogin(), 'Library', 'Preferences', 'Craedl', 'craedl.yml'))
     else:
-        token_path = os.path.expanduser('~/.config/Craedl/craedl')
+        token_path = os.path.expanduser('~/.config/Craedl/craedl.yml')
+    config = yaml.load(open(os.path.expanduser(token_path)))
     base_url = 'https://api.craedl.org/'
 
     def __init__(self):
@@ -62,7 +64,7 @@ class Auth():
         :returns: a dict containing the contents of the parsed JSON response or
             an HTML error string if the response does not have status 200
         """
-        token = open(os.path.expanduser(self.token_path)).readline().strip()
+        token = self.config["token"].strip()
         response = requests.get(
             self.base_url + path,
             headers={'Authorization': 'Bearer %s' % token},
@@ -81,7 +83,7 @@ class Auth():
         :returns: a dict containing the contents of the parsed JSON response or
             an HTML error string if the response does not have status 200
         """
-        token = open(os.path.expanduser(self.token_path)).readline().strip()
+        token = self.config["token"].strip()
         response = requests.post(
             self.base_url + path,
             json=data,
@@ -101,7 +103,8 @@ class Auth():
         :returns: a dict containing the contents of the parsed JSON response or
             an HTML error string if the response does not have status 200
         """
-        token = open(os.path.expanduser(self.token_path)).readline().strip()
+        token = self.config["token"].strip()
+        response = None
         while True:
             d = data.read(BUF_SIZE)
             if not d:
@@ -114,6 +117,8 @@ class Auth():
                     'Content-Disposition': 'attachment; filename="craedl-upload"',
                 },
             )
+        if not response:
+            return
         return self.process_response(response)
 
     def GET_DATA(self, path):
@@ -124,7 +129,7 @@ class Auth():
         :type path: string
         :returns: the data stream being downloaded
         """
-        token = open(os.path.expanduser(self.token_path)).readline().strip()
+        token = self.config["token"].strip()
         response = requests.get(
             self.base_url + path,
             headers={'Authorization': 'Bearer %s' % token},
@@ -220,6 +225,29 @@ class Directory(Auth):
         :returns: the updated instance of this directory
         """
         file_path = os.path.expanduser(file_path)
+        if os.path.isdir(file_path):
+            root = self.create_directory(file_path)
+            for (root_path, dirs, files) in os.walk(file_path, topdown=True):
+                _root_path = root_path
+                if root_path[0] == ".":
+                    _root_path = f"_{root_path[1:]}"
+                if "/." in root_path:
+                    _root_path = _root_path.replace("/.", "/_")
+                    # or I guess just issue warning.
+                    # continue
+                root = self.get(_root_path)
+
+                for d in dirs:
+                    if d[0] == ".":
+                        d = f"_{d[1:]}"
+                        # continue
+                    print(f"root.create_directory({d})")
+                    root.create_directory(d)
+                for f in files:
+                    root.create_file(root_path + "/" + f)
+
+            return Directory(self.id)
+
         data = {
             'name': file_path.split('/')[-1],
             'parent': self.id,
