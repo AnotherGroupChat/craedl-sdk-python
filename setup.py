@@ -38,11 +38,10 @@ setuptools.setup(
     install_requires=[
         'hydra-core',
         'requests',
-#        'yaml',
     ],
     entry_points = {
         'console_scripts': [
-            'craedl-token=craedl.__main__:main',
+            'craedl=craedl.__main__:craedl',
         ],
     },
 )

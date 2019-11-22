@@ -30,7 +30,7 @@ class Auth():
     needs to perform RESTful API communications should extend this class.
     """
     token_path = default_path()
-    config = yaml.load(open(os.path.expanduser(tokn_path)))
+    config = yaml.load(open(os.path.expanduser(token_path)))
     base_url = 'https://api.craedl.org/'
 
     def __init__(self):
@@ -241,8 +241,6 @@ class Directory(Auth):
             core_root = os.path.join(*os.path.split(file_path)[:-1])
             root = self.create_directory(path)
             for (root_path, dirs, files) in os.walk(file_path, topdown=True):
-                #_root_path = os.path.abspath(os.path.join(root_path,
-                #    os.path.relpath(core_root, root_path)))
                 _root_path = os.path.relpath(root_path, core_root)
                 if _root_path[0] == ".":
                     _root_path = f"_{root_path[1:]}"
