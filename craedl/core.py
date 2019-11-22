@@ -85,38 +85,39 @@ class Auth():
         )
         return self.process_response(response)
 
-    def PUT_DATA(self, path, data):
+    def PUT_DATA(self, path, file_path):
         """
         Handle a data PUT request.
 
         :param path: the RESTful API method path
         :type path: string
-        :param data: the data to POST to the RESTful API method as described at
-            https://api.craedl.org
-        :type data: dict
-        :returns: a dict containing the contents of the parsed JSON response,
-            None if the file was empty, or an HTML error string if the response
-            does not have status 200
+        :type file_path: string
+        :returns: a dict containing the contents of the parsed JSON response or
+            an HTML error string if the response does not have status 200
         """
-        token = self.config["token"].strip()
-
-        # If the file is empty, return empty.
-        empty = not data.peek()
-        if empty:
-            return None
-
-        while not empty:
+        token = open(os.path.expanduser(self.token_path)).readline().strip()
+        with open(file_path, 'rb') as data:
             d = data.read(BUF_SIZE)
-            empty = not data.peek()
-            response = requests.put(
-                self.base_url + path,
-                data=d,
-                headers={
-                    'Authorization': 'Bearer %s' % token,
-                    'Content-Disposition':
-                    'attachment; filename="craedl-upload"',
-                },
-            )
+            if d:
+                while d:
+                    response = requests.put(
+                        self.base_url + path,
+                        data=d,
+                        headers={
+                            'Authorization': 'Bearer %s' % token,
+                            'Content-Disposition': 'attachment; filename="craedl-upload"',
+                        },
+                    )
+                    d = data.read(BUF_SIZE)
+            else: # force request for empty file
+                response = requests.put(
+                    self.base_url + path,
+                    # no data
+                    headers={
+                        'Authorization': 'Bearer %s' % token,
+                        'Content-Disposition': 'attachment; filename="craedl-upload"',
+                    },
+                )
         return self.process_response(response)
 
     def GET_DATA(self, path):
@@ -267,7 +268,7 @@ class Directory(Auth):
         response_data = self.POST('file/', data)
         response_data2 = self.PUT_DATA(
             f"data/{response_data['id']}/?vid={response_data['vid']}",
-            open(file_path, 'rb'))
+            file_path)
         return Directory(self.id)
 
     def get(self, path):
