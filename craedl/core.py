@@ -19,24 +19,18 @@ import sys
 import yaml
 
 from craedl import errors
+from craedl.auth import default_path
 
 BUF_SIZE = 104857600
+
 
 class Auth():
     """
     This base class handles low-level RESTful API communications. Any class that
     needs to perform RESTful API communications should extend this class.
     """
-
-    if sys.platform == 'win32':
-        token_path = os.path.abspath(os.path.join(os.sep, 'Users',
-            os.getlogin(), 'AppData', 'Local', 'Craedl', 'craedl.yml'))
-    elif sys.platform == 'darwin':
-        token_path = os.path.abspath(os.path.join(os.sep, 'Users',
-            os.getlogin(), 'Library', 'Preferences', 'Craedl', 'craedl.yml'))
-    else:
-        token_path = os.path.expanduser('~/.config/Craedl/craedl.yml')
-    config = yaml.load(open(os.path.expanduser(token_path)))
+    token_path = default_path()
+    config = yaml.load(open(os.path.expanduser(tokn_path)))
     base_url = 'https://api.craedl.org/'
 
     def __init__(self):
@@ -109,7 +103,7 @@ class Auth():
         # If the file is empty, return empty.
         empty = not data.peek()
         if empty:
-           return None
+            return None
 
         while not empty:
             d = data.read(BUF_SIZE)
@@ -119,7 +113,8 @@ class Auth():
                 data=d,
                 headers={
                     'Authorization': 'Bearer %s' % token,
-                    'Content-Disposition': 'attachment; filename="craedl-upload"',
+                    'Content-Disposition':
+                    'attachment; filename="craedl-upload"',
                 },
             )
         return self.process_response(response)
@@ -166,11 +161,11 @@ class Auth():
         else:
             raise errors.Other_Error
 
+
 class Directory(Auth):
     """
     A Craedl directory object.
     """
-
     def __init__(self, id):
         super().__init__()
         data = self.GET('directory/' + str(id) + '/')['directory']
@@ -203,12 +198,25 @@ class Directory(Auth):
         :type name: string
         :returns: the updated instance of this directory
         """
+        if not name:
+            # Warn that no directory was provided.
+            print("No directory name provided..")
+            return self
+        nesting = name.split(os.sep)
+        nesting = list(filter(lambda x: x, nesting))
+        name = nesting[0]
         data = {
             'name': name,
             'parent': self.id,
         }
         response_data = self.POST('directory/', data)
-        return Directory(self.id)
+
+        directory = Directory(self.id)
+        if len(nesting) > 1:
+            remaining = os.path.join(*nesting[1:])
+            if remaining:
+                directory.get(name).create_directory(remaining)
+        return directory
 
     def create_file(self, file_path):
         """
@@ -229,22 +237,24 @@ class Directory(Auth):
         """
         file_path = os.path.expanduser(file_path)
         if os.path.isdir(file_path):
-            root = self.create_directory(file_path)
+            path = os.path.split(file_path)[-1]
+            core_root = os.path.join(*os.path.split(file_path)[:-1])
+            root = self.create_directory(path)
             for (root_path, dirs, files) in os.walk(file_path, topdown=True):
-                _root_path = root_path
-                if root_path[0] == ".":
+                #_root_path = os.path.abspath(os.path.join(root_path,
+                #    os.path.relpath(core_root, root_path)))
+                _root_path = os.path.relpath(root_path, core_root)
+                if _root_path[0] == ".":
                     _root_path = f"_{root_path[1:]}"
-                if "/." in root_path:
+                if "/." in _root_path:
                     _root_path = _root_path.replace("/.", "/_")
                     # or I guess just issue warning.
                     # continue
-                root = self.get(_root_path)
+                root = self.create_directory(_root_path).get(_root_path)
 
                 for d in dirs:
                     if d[0] == ".":
                         d = f"_{d[1:]}"
-                        # continue
-                    print(f"root.create_directory({d})")
                     root.create_directory(d)
                 for f in files:
                     root.create_file(root_path + "/" + f)
@@ -259,8 +269,7 @@ class Directory(Auth):
         response_data = self.POST('file/', data)
         response_data2 = self.PUT_DATA(
             f"data/{response_data['id']}/?vid={response_data['vid']}",
-            open(file_path, 'rb')
-        )
+            open(file_path, 'rb'))
         return Directory(self.id)
 
     def get(self, path):
@@ -336,17 +345,29 @@ class Directory(Auth):
                 files.append(File(c['id']))
         return (dirs, files)
 
+    def download(self, save_path, version_index=None):
+        save_path = os.path.join(save_path, self.name)
+        try:
+            os.makedirs(save_path)
+        except:
+            print(f"Overriding data in {save_path}")
+        (dirs, files) = self.list()
+        net = dirs + files
+        for file in net:
+            file.download(save_path, version_index)
+        return self
+
+
 class File(Auth):
     """
     A Craedl file object.
     """
-
     def __init__(self, id):
         super().__init__()
         data = self.GET('file/' + str(id) + '/')
         for k, v in data.items():
             if k == 'versions':
-                v.reverse() # list versions in chronological order
+                v.reverse()  # list versions in chronological order
             setattr(self, k, v)
 
     def download(self, save_path, version_index=None):
@@ -365,10 +386,13 @@ class File(Auth):
         save_path = os.path.expanduser(save_path)
         if version_index is None:
             data = self.GET_DATA('data/' + str(self.id) + '/')
+        elif version_index < len(self.versions):
+            data = self.GET_DATA('data/%d/?vid=%d' %
+                                 (self.id, self.versions[version_index]['id']))
         else:
-            data = self.GET_DATA('data/%d/?vid=%d' % (
-                self.id, self.versions[version_index]['id']
-            ))
+            print("Version of this file does not exisit. Skipping")
+            return self
+
         try:
             f = open(save_path, 'wb')
         except IsADirectoryError:
@@ -378,11 +402,11 @@ class File(Auth):
         f.close()
         return self
 
+
 class Profile(Auth):
     """
     A Craedl profile object.
     """
-
     def __init__(self, data=None, id=None):
         super().__init__()
         if not data and not id:
@@ -469,11 +493,11 @@ class Profile(Auth):
             research_groups.append(Research_Group(research_group['slug']))
         return research_groups
 
+
 class Project(Auth):
     """
     A Craedl project object.
     """
-
     def __init__(self, id):
         super().__init__()
         data = self.GET('project/' + str(id) + '/')
@@ -504,6 +528,7 @@ class Project(Auth):
             publications.append(Publication(publication))
         return publications
 
+
 class Publication(Auth):
     """
     A Craedl publication object.
@@ -524,11 +549,11 @@ class Publication(Auth):
                 if not v == None:
                     setattr(self, k, v)
 
+
 class Research_Group(Auth):
     """
     A Craedl research group object.
     """
-
     def __init__(self, id):
         super().__init__()
         data = self.GET('research_group/' + str(id) + '/')
