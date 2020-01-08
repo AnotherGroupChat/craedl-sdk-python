@@ -15,7 +15,6 @@ from glob import glob
 
 from craedl import errors
 from craedl.auth import default_path
-import click
 
 BUF_SIZE = 104857600
 
@@ -223,7 +222,7 @@ class Directory(Auth):
                 directory.get(name).create_directory(remaining)
         return directory
 
-    def create_file(self, file_path, progress=False):
+    def create_file(self, file_path, bar=None):
         """
         Create a new file contained within this directory.
 
@@ -238,15 +237,13 @@ class Directory(Auth):
 
         :param file_path: the path to the file to be uploaded on your computer
         :type file_path: string
+        :param bar: Bar object to render a progress bar.
+        :type bar: click.progressbar 
         :returns: the updated instance of this directory
         """
         file_path = os.path.expanduser(file_path)
         if os.path.isdir(file_path):
 
-            size = sum(os.path.getsize(x) for x in glob(os.path.join(file_path, '**'), recursive=True))
-            if progress:
-                bar = click.progressbar(length=size, label="uploading
-                        data...").__enter__()
             path = os.path.split(file_path)[-1]
             core_root = os.path.join(*os.path.split(file_path)[:-1])
             root = self.create_directory(path)
@@ -267,9 +264,10 @@ class Directory(Auth):
 
                 for f in files:
                     f_path = root_path + "/" + f
-                    res = root.create_file(f_path)
-                    if progress:
-                        bar.update(os.path.getsize(f_path))
+                    res = root.create_file(f_path, bar=bar)
+                    if bar:
+                        size = os.path.getsize(f_path)
+                        bar.update(size)
 
             return Directory(self.id)
 
@@ -358,7 +356,7 @@ class Directory(Auth):
                 files.append(File(c['id']))
         return (dirs, files)
 
-    def download(self, save_path, version_index=None):
+    def download(self, save_path, version_index=None, bar=None):
         save_path = os.path.join(save_path, self.name)
         try:
             os.makedirs(save_path)
@@ -367,7 +365,7 @@ class Directory(Auth):
         (dirs, files) = self.list()
         net = dirs + files
         for file in net:
-            file.download(save_path, version_index)
+            file.download(save_path, version_index, bar)
         return self
 
 
@@ -383,7 +381,7 @@ class File(Auth):
                 v.reverse()  # list versions in chronological order
             setattr(self, k, v)
 
-    def download(self, save_path, version_index=None):
+    def download(self, save_path, version_index=None, bar=None):
         """
         Download the data associated with this file. This returns the active
         version by default.
@@ -394,6 +392,8 @@ class File(Auth):
         :param version_index: the (optional) index of the version to be
             downloaded
         :type version_index: int
+        :param bar: Bar object to render a progress bar.
+        :type bar: click.progressbar 
         :returns: this file
         """
         save_path = os.path.expanduser(save_path)
@@ -403,7 +403,7 @@ class File(Auth):
             data = self.GET_DATA('data/%d/?vid=%d' %
                                  (self.id, self.versions[version_index]['id']))
         else:
-            print("Version of this file does not exisit. Skipping")
+            print("Version of this file does not exist. Skipping")
             return self
 
         try:
@@ -412,6 +412,8 @@ class File(Auth):
             f = open(save_path + '/' + self.name, 'wb')
         for chunk in data.iter_content():
             f.write(chunk)
+            if bar:
+                bar.update(len(chunk))
         f.close()
         return self
 

@@ -21,6 +21,7 @@ from craedl import auth
 from craedl.auth import default_path
 
 import click
+from glob import glob
 
 TOKEN_PATH = default_path()
 
@@ -34,8 +35,12 @@ def try_upload(profile, source, destination):
     path = versioned[0]
     if len(versioned) != 1:
         raise Exception("Cannot specify an upload version.")
-    profile.get_project(destinations[0]).get_data().create_directory(path).get(
-        path).create_file(source, progress=True)
+
+    size = sum(os.path.getsize(x) for x in glob(os.path.join(source, '**'),
+        recursive=True) if os.path.isfile(x))
+    with click.progressbar(length=size, label="uploading data...") as bar:
+        profile.get_project(destinations[0]).get_data().create_directory(path).get(
+            path).create_file(source, bar=bar)
 
 
 def try_download(profile, source, destination):
@@ -52,8 +57,9 @@ def try_download(profile, source, destination):
         except:
             raise Exception(
                 "Not sure what version you're specifying for download...")
-    profile.get_project(sources[0]).get_data().get(path).download(
-        destination, version_index=version)
+    result = profile.get_project(sources[0]).get_data().get(path)
+    with click.progressbar(length=result.size, label="downloading data...") as bar:
+        result.download(destination, bar=bar, version_index=version)
 
 
 @click.command()
