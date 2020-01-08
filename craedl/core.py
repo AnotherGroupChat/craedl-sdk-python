@@ -31,7 +31,7 @@ class Auth():
     base_url = 'https://api.craedl.org/'
 
     def __init__(self):
-        print(self.config["token"].strip())
+        self._token = None
         if not os.path.isfile(os.path.expanduser(self.token_path)):
             raise errors.Missing_Token_Error
 
@@ -47,6 +47,12 @@ class Auth():
         string += '}'
         return string
 
+    @property
+    def token(self):
+        if not self._token:
+            self._token = self.config["token"].strip()
+        return self._token
+
     def GET(self, path):
         """
         Handle a GET request.
@@ -56,10 +62,9 @@ class Auth():
         :returns: a dict containing the contents of the parsed JSON response or
             an HTML error string if the response does not have status 200
         """
-        token = self.config["token"].strip()
         response = requests.get(
             self.base_url + path,
-            headers={'Authorization': 'Bearer %s' % token},
+            headers={'Authorization': 'Bearer %s' % self.token},
         )
         return self.process_response(response)
 
@@ -75,11 +80,10 @@ class Auth():
         :returns: a dict containing the contents of the parsed JSON response or
             an HTML error string if the response does not have status 200
         """
-        token = self.config["token"].strip()
         response = requests.post(
             self.base_url + path,
             json=data,
-            headers={'Authorization': 'Bearer %s' % token},
+            headers={'Authorization': 'Bearer %s' % self.token},
         )
         return self.process_response(response)
 
@@ -93,7 +97,6 @@ class Auth():
         :returns: a dict containing the contents of the parsed JSON response or
             an HTML error string if the response does not have status 200
         """
-        token = open(os.path.expanduser(self.token_path)).readline().strip()
         with open(file_path, 'rb') as data:
             d = data.read(BUF_SIZE)
             if d:
@@ -103,7 +106,7 @@ class Auth():
                         data=d,
                         headers={
                             'Authorization':
-                            'Bearer %s' % token,
+                            'Bearer %s' % self.token,
                             'Content-Disposition':
                             'attachment; filename="craedl-upload"',
                         },
@@ -115,7 +118,7 @@ class Auth():
                     # no data
                     headers={
                         'Authorization':
-                        'Bearer %s' % token,
+                        'Bearer %s' % self.token,
                         'Content-Disposition':
                         'attachment; filename="craedl-upload"',
                     },
@@ -130,10 +133,9 @@ class Auth():
         :type path: string
         :returns: the data stream being downloaded
         """
-        token = self.config["token"].strip()
         response = requests.get(
             self.base_url + path,
-            headers={'Authorization': 'Bearer %s' % token},
+            headers={'Authorization': 'Bearer %s' % self.token},
             stream=True,
         )
         return response
@@ -274,8 +276,10 @@ class Directory(Auth):
             'size': os.path.getsize(file_path)
         }
         response_data = self.POST('file/', data)
+        print(response_data)
+        # Example: {'active_version': 262510, 'date_modify': '2020-01-08T18:07:21.415633Z', 'id': 372727, 'name': 'state.6.vtk', 'parent': 372723, 'size': 0, 'type': 'f'}
         response_data2 = self.PUT_DATA(
-            f"data/{response_data['id']}/?vid={response_data['vid']}",
+            f"data/{response_data['id']}/?vid={response_data['active_version']}",
             file_path)
         return Directory(self.id)
 
