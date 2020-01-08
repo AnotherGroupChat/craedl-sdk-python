@@ -1,10 +1,4 @@
-# Copyright 2019 The Johns Hopkins University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2019 The Johns Hopkins University Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.  You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,9 +11,11 @@ import os
 import requests
 import sys
 import yaml
+from glob import glob
 
 from craedl import errors
 from craedl.auth import default_path
+import click
 
 BUF_SIZE = 104857600
 
@@ -30,10 +26,12 @@ class Auth():
     needs to perform RESTful API communications should extend this class.
     """
     token_path = default_path()
-    config = yaml.load(open(os.path.expanduser(token_path)))
+    config = yaml.load(open(os.path.expanduser(token_path)),
+                       Loader=yaml.FullLoader)
     base_url = 'https://api.craedl.org/'
 
     def __init__(self):
+        print(self.config["token"].strip())
         if not os.path.isfile(os.path.expanduser(self.token_path)):
             raise errors.Missing_Token_Error
 
@@ -104,18 +102,22 @@ class Auth():
                         self.base_url + path,
                         data=d,
                         headers={
-                            'Authorization': 'Bearer %s' % token,
-                            'Content-Disposition': 'attachment; filename="craedl-upload"',
+                            'Authorization':
+                            'Bearer %s' % token,
+                            'Content-Disposition':
+                            'attachment; filename="craedl-upload"',
                         },
                     )
                     d = data.read(BUF_SIZE)
-            else: # force request for empty file
+            else:  # force request for empty file
                 response = requests.put(
                     self.base_url + path,
                     # no data
                     headers={
-                        'Authorization': 'Bearer %s' % token,
-                        'Content-Disposition': 'attachment; filename="craedl-upload"',
+                        'Authorization':
+                        'Bearer %s' % token,
+                        'Content-Disposition':
+                        'attachment; filename="craedl-upload"',
                     },
                 )
         return self.process_response(response)
@@ -219,7 +221,7 @@ class Directory(Auth):
                 directory.get(name).create_directory(remaining)
         return directory
 
-    def create_file(self, file_path):
+    def create_file(self, file_path, progress=False):
         """
         Create a new file contained within this directory.
 
@@ -238,6 +240,11 @@ class Directory(Auth):
         """
         file_path = os.path.expanduser(file_path)
         if os.path.isdir(file_path):
+
+            size = sum(os.path.getsize(x) for x in glob(os.path.join(file_path, '**'), recursive=True))
+            if progress:
+                bar = click.progressbar(length=size, label="uploading data...")
+                bar.__enter__()
             path = os.path.split(file_path)[-1]
             core_root = os.path.join(*os.path.split(file_path)[:-1])
             root = self.create_directory(path)
@@ -256,7 +263,8 @@ class Directory(Auth):
                         d = f"_{d[1:]}"
                     root.create_directory(d)
                 for f in files:
-                    root.create_file(root_path + "/" + f)
+                    res = root.create_file(root_path + "/" + f)
+                    print(res)
 
             return Directory(self.id)
 
