@@ -35,7 +35,7 @@ def try_upload(profile, source, destination):
     if len(versioned) != 1:
         raise Exception("Cannot specify an upload version.")
     profile.get_project(destinations[0]).get_data().create_directory(path).get(
-        path).create_file(source)
+        path).create_file(source, progress=True)
 
 
 def try_download(profile, source, destination):

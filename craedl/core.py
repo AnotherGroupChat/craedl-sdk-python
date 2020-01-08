@@ -245,8 +245,8 @@ class Directory(Auth):
 
             size = sum(os.path.getsize(x) for x in glob(os.path.join(file_path, '**'), recursive=True))
             if progress:
-                bar = click.progressbar(length=size, label="uploading data...")
-                bar.__enter__()
+                bar = click.progressbar(length=size, label="uploading
+                        data...").__enter__()
             path = os.path.split(file_path)[-1]
             core_root = os.path.join(*os.path.split(file_path)[:-1])
             root = self.create_directory(path)
@@ -264,9 +264,12 @@ class Directory(Auth):
                     if d[0] == ".":
                         d = f"_{d[1:]}"
                     root.create_directory(d)
+
                 for f in files:
-                    res = root.create_file(root_path + "/" + f)
-                    print(res)
+                    f_path = root_path + "/" + f
+                    res = root.create_file(f_path)
+                    if progress:
+                        bar.update(os.path.getsize(f_path))
 
             return Directory(self.id)
 
@@ -276,7 +279,6 @@ class Directory(Auth):
             'size': os.path.getsize(file_path)
         }
         response_data = self.POST('file/', data)
-        print(response_data)
         # Example: {'active_version': 262510, 'date_modify': '2020-01-08T18:07:21.415633Z', 'id': 372727, 'name': 'state.6.vtk', 'parent': 372723, 'size': 0, 'type': 'f'}
         response_data2 = self.PUT_DATA(
             f"data/{response_data['id']}/?vid={response_data['active_version']}",
