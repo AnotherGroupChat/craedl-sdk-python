@@ -67,17 +67,22 @@ def try_download(profile, source, destination):
               default=TOKEN_PATH,
               help=("Path of settings token"
                     "location."))
+@click.option("--group",
+              default=None,
+              help=("Path of settings token"
+                    "location."))
 @click.argument("source")
 @click.argument("destination")
-def craedl(config, source, destination):
+def craedl(config, group, source, destination):
     """
     The ``craedl-token`` console script entry point for configuring the Craedl
     authentication token.
     """
     profile = auth()
+    group = group or profile.config.get("group", None)
+    if group:
+        profile = profile.get_research_group(group)
     errors = []
-    # Massive hack. Should determine whether download or source instead of just
-    # trying and breaking.
     try:
         try_download(profile, source, destination)
     except Exception as e:

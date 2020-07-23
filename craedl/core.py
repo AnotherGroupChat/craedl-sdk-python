@@ -238,7 +238,7 @@ class Directory(Auth):
         :param file_path: the path to the file to be uploaded on your computer
         :type file_path: string
         :param bar: Bar object to render a progress bar.
-        :type bar: click.progressbar 
+        :type bar: click.progressbar
         :returns: the updated instance of this directory
         """
         file_path = os.path.expanduser(file_path)
@@ -393,7 +393,7 @@ class File(Auth):
             downloaded
         :type version_index: int
         :param bar: Bar object to render a progress bar.
-        :type bar: click.progressbar 
+        :type bar: click.progressbar
         :returns: this file
         """
         save_path = os.path.expanduser(save_path)
