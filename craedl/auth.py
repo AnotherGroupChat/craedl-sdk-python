@@ -19,16 +19,8 @@ import sys
 
 
 def create_default(token_path, prompt):
-    argv = sys.argv
-
-    if not prompt and len(argv) > 1 and not os.path.exists(
-            os.path.dirname(token_path)):
-        sys.exit(
-            'craedl-token configures your Craedl authentication token, which you can obtain\n'
-            'from your Craedl account. Visit https://craedl.org/docs#api-access for more information.'
-        )
-
-    token = getpass.getpass('Enter your token: ')
+    token = getpass.getpass('Visit https://craedl.org/docs#api-access for'
+            ' more information.\nEnter your token: ')
 
     if len(token) != 40:
         sys.exit('The provided token is invalid.')

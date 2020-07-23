@@ -1,4 +1,35 @@
-# Craedl Python SDK
+# CLI modifications to Craedl-SDK
+
+## Usage:
+
+### Upload:
+```craedl source project:destination```
+
+### Download
+```craedl project:destination source```
+
+### Download a specific version
+```craedl project:destination@123 source```
+
+### Use a particular group
+```craedl project:destination@123 source group=group```
+
+### Configuration
+configure the tool in `.config/Craedl/craedl.yml`
+```
+token: your-api-token
+group: default-group
+```
+You can leave group blank and specify with the command if you want.
+
+## TODO:
+Implement local caching like from official repository
+
+---
+
+# Previous Readme
+
+## Craedl Python SDK
 
 The Craedl Python SDK (Software Development Kit) enables Craedl users to access
 their [Craedl](https://craedl.org) accounts using the Python programming
@@ -7,7 +38,7 @@ to a web browser (such as a high-performance computing cluster) and to automate
 common Craedl project manipulations (such as file uploads and downloads) within
 a Python script.
 
-## Quick start
+### Quick start
 
 Get started with the Craedl Python SDK by obtaining it via
 [PyPI](https://pypi.org/project/craedl/):
@@ -33,7 +64,7 @@ for project in profile.get_projects():
     print(project.name)
 ```
 
-## More information
+### More information
 
 For more information about the Craedl Python SDK, refer to
 [our documentation](https://craedl-sdk-python.readthedocs.io). The source code
