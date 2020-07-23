@@ -1,5 +1,9 @@
 # CLI modifications to Craedl-SDK
 
+## Installation
+
+Clone the project and run `pip install --user --upgrade .` int the project folder.
+
 ## Usage:
 
 ### Upload:
@@ -12,7 +16,7 @@
 ```craedl project:destination@123 source```
 
 ### Use a particular group
-```craedl project:destination@123 source group=group```
+```craedl project:destination@123 source --group=group```
 
 ### Configuration
 configure the tool in `.config/Craedl/craedl.yml`
@@ -20,7 +24,7 @@ configure the tool in `.config/Craedl/craedl.yml`
 token: your-api-token
 group: default-group
 ```
-You can leave group blank and specify with the command if you want.
+You can leave group blank and specify with the command if you want. No group will use your profile's projects.
 
 ## TODO:
 Implement local caching like from official repository
